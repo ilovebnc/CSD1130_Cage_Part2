@@ -4,7 +4,10 @@
 \author 	Guo Yiming, yiming.guo, 2202613
 \par    	email: yiming.guo@digipen.edu
 \date   	Mar 18, 2023
-\brief
+\brief		This source file contains definitions for BuildLineSegment,
+			CollisionIntersection_CircleLineSegment,
+			CheckMovingCircleToLineEdge and
+			CollisionResponse_CircleLineSegment.
 
 Copyright (C) 2023 DigiPen Institute of Technology.
 Reproduction or disclosure of this file or its contents without the
@@ -16,6 +19,12 @@ prior written consent of DigiPen Institute of Technology is prohibited.
 
 /******************************************************************************/
 /*!
+* \brief Builds a line segment
+* \param [out]	lineSegment		Reference to LineSegment to be set.
+* 
+* \param [in]	p0				Const reference to CSD1130::Vec2 for input.
+* 
+* \param [in]	p1				Const reference to CSD1130::Vec2 for input.
  */
 /******************************************************************************/
 void BuildLineSegment(LineSegment &lineSegment,
@@ -26,16 +35,40 @@ void BuildLineSegment(LineSegment &lineSegment,
 	lineSegment.m_pt0 = p0;
 	lineSegment.m_pt1 = p1;
 
-	// Calculate the direction of the line segment
+	// Calculate the direction vector of the line segment
 	CSD1130::Vec2 dir = p1 - p0;
 
 	// Calculate the outward-facing normal of the line segment
 	// Set the normal of the line segment
-	CSD1130::Vector2DNormalize(lineSegment.m_normal, { dir.y, -dir.x });
+	CSD1130::Vector2DNormalize(lineSegment.m_normal, CSD1130::Vector2D(dir.y, -dir.x));
 }
 
 /******************************************************************************/
 /*!
+* \brief Calculate the collision between a circle with a line.
+* 
+* \param [in]	circle				Const reference to Circle containing
+									start pos of the circle and its radius.
+
+  \param [in]	ptEnd				Const reference to CSD1130::Vec2 containing
+									end pos of the circle.
+
+  \param [in]	lineSeg				Const reference to LineSegment containing the line.
+
+  \param [out]	interPt				Reference to a CSD1130::Vec2 for storing the point
+									of intersection. Will not be used if there is
+									no collision.
+
+  \param [out]	normalAtCollision	Reference to a CSD1130::Vec2 for storing the
+									outward normal at point of intersection.
+
+  \param [out]	interTime			Stores the time it takes until point of
+									intersection.
+
+  \param [in]	checkLineEdges		Flag to determine whether to check for
+									collision at line edges.
+
+  \return		int					returns 1 if there is collision, else 0.
  */
 /******************************************************************************/
 int CollisionIntersection_CircleLineSegment(const Circle &circle,
@@ -49,12 +82,20 @@ int CollisionIntersection_CircleLineSegment(const Circle &circle,
 	// Calculate Velocity vector V and its outward normal M
 	CSD1130::Vec2 V = ptEnd - circle.m_center;
 	CSD1130::Vec2 M(V.y, -V.x);
-	//CSD1130::Vector2DNormalize(M, M);
 
 	// Calculate N.Bs, N.P0, N.Bs & N.V
-	float NBs = CSD1130::Vector2DDotProduct(lineSeg.m_normal, circle.m_center);
-	float NP0 = CSD1130::Vector2DDotProduct(lineSeg.m_normal, lineSeg.m_pt0);
-	float NV = CSD1130::Vector2DDotProduct(lineSeg.m_normal, V);
+	float			NBs = CSD1130::Vector2DDotProduct(lineSeg.m_normal, circle.m_center),
+					NP0 = CSD1130::Vector2DDotProduct(lineSeg.m_normal, lineSeg.m_pt0),
+					NV	= CSD1130::Vector2DDotProduct(lineSeg.m_normal, V);
+
+	// For calculations later simulating LNS1 and LNS2
+	CSD1130::Vec2	P0prime,
+					P1prime,
+					BsP0prime,
+					BsP1prime;
+
+	float			MBsP0prime,
+					MBsP1prime;
 
 	// Bs is starting from the inside half plane, and away from LNS by at least R
 	// Here we consider we have an imaginary line LNS1, distant by -R (opposite N direction)
@@ -64,22 +105,22 @@ int CollisionIntersection_CircleLineSegment(const Circle &circle,
 		// To simulate LNS1 line edge points
 
 		// Calculate P0' and P1'
-		CSD1130::Vec2 P0prime = lineSeg.m_pt0 - circle.m_radius * lineSeg.m_normal;
-		CSD1130::Vec2 P1prime = lineSeg.m_pt1 - circle.m_radius * lineSeg.m_normal;
+		P0prime = lineSeg.m_pt0 - circle.m_radius * lineSeg.m_normal;
+		P1prime = lineSeg.m_pt1 - circle.m_radius * lineSeg.m_normal;
 
 		// Calculate BsP0' and BsP1'
-		CSD1130::Vec2 BsP0prime = P0prime - circle.m_center;
-		CSD1130::Vec2 BsP1prime = P1prime - circle.m_center;
+		BsP0prime = P0prime - circle.m_center;
+		BsP1prime = P1prime - circle.m_center;
 
 		// Calculate M.BsP0'& M.BsP1'
-		float MBsP0prime = CSD1130::Vector2DDotProduct(M, BsP0prime);
-		float MBsP1prime = CSD1130::Vector2DDotProduct(M, BsP1prime);
+		MBsP0prime = CSD1130::Vector2DDotProduct(M, BsP0prime);
+		MBsP1prime = CSD1130::Vector2DDotProduct(M, BsP1prime);
 
 		if (MBsP0prime * MBsP1prime < 0) {
-			interTime = (NP0 - NBs - circle.m_radius) / (NV); // We are sure N.V != 0
+			interTime = (NP0 - NBs - circle.m_radius) / (NV);				// We are sure N.V != 0
 			if (0 <= interTime && interTime <= 1) {
-				interPt = circle.m_center + V * interTime;
-				normalAtCollision = -lineSeg.m_normal; // Normal at reflection is -N
+				interPt				= circle.m_center + V * interTime;
+				normalAtCollision	= -lineSeg.m_normal;					// Normal at reflection is -N
 				return 1;
 			}
 		}
@@ -94,37 +135,61 @@ int CollisionIntersection_CircleLineSegment(const Circle &circle,
 		// M is the outward normal to Velocity V. Compute P0' and P1'
 
 		// Calculate P0' and P1'
-		CSD1130::Vec2 P0prime = lineSeg.m_pt0 + circle.m_radius * lineSeg.m_normal;
-		CSD1130::Vec2 P1prime = lineSeg.m_pt1 + circle.m_radius * lineSeg.m_normal;
+		P0prime = lineSeg.m_pt0 + circle.m_radius * lineSeg.m_normal;
+		P1prime = lineSeg.m_pt1 + circle.m_radius * lineSeg.m_normal;
 
 		// Calculate BsP0' and BsP1'
-		CSD1130::Vec2 BsP0prime = P0prime - circle.m_center;
-		CSD1130::Vec2 BsP1prime = P1prime - circle.m_center;
+		BsP0prime = P0prime - circle.m_center;
+		BsP1prime = P1prime - circle.m_center;
 
 		// Calculate M.BsP0'& M.BsP1'
-		float MBsP0prime = CSD1130::Vector2DDotProduct(M, BsP0prime);
-		float MBsP1prime = CSD1130::Vector2DDotProduct(M, BsP1prime);
+		MBsP0prime = CSD1130::Vector2DDotProduct(M, BsP0prime);
+		MBsP1prime = CSD1130::Vector2DDotProduct(M, BsP1prime);
 
 		if (MBsP0prime * MBsP1prime < 0) {
-			interTime = (NP0 - NBs + circle.m_radius) / (NV); // We are sure N.V != 0
+			interTime = (NP0 - NBs + circle.m_radius) / (NV);				// We are sure N.V != 0
 			if (0 <= interTime && interTime <= 1) {
-				interPt = circle.m_center + V * interTime;
-				normalAtCollision = lineSeg.m_normal; // Normal of reflection is N
+				interPt				= circle.m_center + V * interTime;
+				normalAtCollision	= lineSeg.m_normal;						// Normal of reflection is N
 				return 1;
 			}
 		}
 		else if (checkLineEdges)
 			return CheckMovingCircleToLineEdge(false, circle, ptEnd, lineSeg, interPt, normalAtCollision, interTime);
 	}
-
 	else if (checkLineEdges) // The circle's starting position Bs, is between both lines LNS1 and LNS2.
-		CheckMovingCircleToLineEdge(true, circle, ptEnd, lineSeg, interPt, normalAtCollision, interTime);
+		return CheckMovingCircleToLineEdge(true, circle, ptEnd, lineSeg, interPt, normalAtCollision, interTime);
 
-	return 0;
-}
+	return 0; // no collision
+
+} // end CollisionIntersection_CircleLineSegment
 
 /******************************************************************************/
 /*!
+* \brief Calculate the collision between a moving circle with a line edge.
+
+  \param [in]	withinBothLines		Flag to determine if circle is between both
+									imaginary lines LNS1 and LNS2.
+
+* \param [in]	circle				Const reference to Circle containing
+									start pos of the circle and its radius.
+
+  \param [in]	ptEnd				Const reference to CSD1130::Vec2 containing
+									end pos of the circle.
+
+  \param [in]	lineSeg				Const reference to LineSegment containing the line.
+
+  \param [out]	interPt				Reference to a CSD1130::Vec2 for storing the point
+									of intersection. Will not be used if there is
+									no collision.
+
+  \param [out]	normalAtCollision	Reference to a CSD1130::Vec2 for storing the
+									outward normal at point of intersection.
+
+  \param [out]	interTime			Stores the time it takes until point of
+									intersection.
+
+  \return		int					returns 1 if there is collision, else 0.
 */
 /******************************************************************************/
 int CheckMovingCircleToLineEdge(bool withinBothLines,
@@ -135,14 +200,6 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 	CSD1130::Vec2 &normalAtCollision,
 	float &interTime)
 {
-	/*UNREFERENCED_PARAMETER(withinBothLines);
-	UNREFERENCED_PARAMETER(circle);
-	UNREFERENCED_PARAMETER(ptEnd);
-	UNREFERENCED_PARAMETER(lineSeg);
-	UNREFERENCED_PARAMETER(interPt);
-	UNREFERENCED_PARAMETER(normalAtCollision);
-	UNREFERENCED_PARAMETER(interTime);*/
-
 	// Bs = circle.center
 	CSD1130::Vec2 BsP0 = lineSeg.m_pt0 - circle.m_center;
 	CSD1130::Vec2 BsP1 = lineSeg.m_pt1 - circle.m_center;
@@ -162,11 +219,10 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 	if (withinBothLines) { // When it's true, is to say that Bs is starting from between both imaginary lines
 		// Check which edge may collide first?
 		if (BsP0P0P1 > 0) { // P0 side
-			if ((m = CSD1130::Vector2DDotProduct(BsP0, Vnorm)) > 0) { // Otherwise no collision
+			if ((m = CSD1130::Vector2DDotProduct(BsP0, Vnorm)) > 0) {		// Otherwise no collision
 				// Reaching here means the circle movement is facing P0
-
 				// M is normalized outward normal of V
-				dist0 = CSD1130::Vector2DDotProduct(BsP0, M); // Same as P0.M - Bs.M (shortest distance from P0 to V)
+				dist0 = CSD1130::Vector2DDotProduct(BsP0, M);				// Same as P0.M - Bs.M (shortest distance from P0 to V)
 				if (abs(dist0) > circle.m_radius)
 					return 0;
 
@@ -183,13 +239,13 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 					return 1;
 				}
 			}
-		}
+		} // end if (BsP0P0P1 > 0)
 
 		else { //(BsP1.P0P1 < 0) //P1 side
-			if ((m = CSD1130::Vector2DDotProduct(BsP1, Vnorm)) > 0) { // Otherwise no collision
+			if ((m = CSD1130::Vector2DDotProduct(BsP1, Vnorm)) > 0) {		// Otherwise no collision
 				// Reaching here means the circle movement is facing P1
 				// M is normalized outward normal of V
-				dist1 = CSD1130::Vector2DDotProduct(BsP1, M); // Same as P1.M - Bs.M
+				dist1 = CSD1130::Vector2DDotProduct(BsP1, M);				// Same as P1.M - Bs.M
 				if (abs(dist1) > circle.m_radius)
 					return 0;
 
@@ -206,14 +262,14 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 					return 1;
 				}
 			}
-		}
-	}
+		} // end else (BsP1.P0P1 < 0) // P1 side
+	} // end if (withinBothLines)
 
 	else { // else of: if (withinBothLines)
 		// Check which line edge, P0 or P1, is closer to the velocity vector V?
 		bool P0Side = false;
-		dist0 = CSD1130::Vector2DDotProduct(BsP0, M); // Same as P0.M - Bs.M (M is normalized outward normal of V)
-		dist1 = CSD1130::Vector2DDotProduct(BsP1, M); // Same as P1.M - Bs.M
+		dist0 = CSD1130::Vector2DDotProduct(BsP0, M);						// Same as P0.M - Bs.M (M is normalized outward normal of V)
+		dist1 = CSD1130::Vector2DDotProduct(BsP1, M);						// Same as P1.M - Bs.M
 
 		float dist0_abs = abs(dist0);
 		float dist1_abs = abs(dist1);
@@ -252,7 +308,7 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 					return 1;
 				}
 			}
-		}
+		} // end if (P0Side)
 
 		else { // circle is closer to P1
 			if ((m = CSD1130::Vector2DDotProduct(BsP1, Vnorm)) < 0)
@@ -271,11 +327,13 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 					return 1;
 				}
 			}
-		}
-	}
+		} // end if (!P0Side)
 
-	return 0;
-}
+	} // end if (!withinBothLines)
+
+	return 0; // no collision
+
+} // end CheckMovingCircleToLineEdge
 
 
 
@@ -283,6 +341,20 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 
 /******************************************************************************/
 /*!
+* \brief Calculate the collision response after collision
+		 between circle and line segment.
+
+  \param [in]		interPt				Const reference to a CSD1130::Vec2 containing
+										the point of intersection.
+
+  \param [in]		normal				Const reference to a CSD1130::Vec2 containing
+										the outward normal at point of intersection.
+
+* \param [in, out]	ptEnd				Reference to a CSD1130::Vec2 for storing the
+*										new end pos of the circle.
+
+  \param [out]		reflected			Reference to a CSD1130::Vec2 for storing the
+										reflection vector at point of intersection.
  */
 /******************************************************************************/
 void CollisionResponse_CircleLineSegment(const CSD1130::Vec2 &ptInter,
@@ -293,7 +365,7 @@ void CollisionResponse_CircleLineSegment(const CSD1130::Vec2 &ptInter,
 	// Calculate penetration vector
 	CSD1130::Vec2 penetration = ptEnd - ptInter;
 
-	// Calculate reflection
+	// Calculate reflection vector
 	reflected = penetration - 2 * CSD1130::Vector2DDotProduct(penetration, normal) * normal;
 
 	// Calculate Be'
@@ -301,7 +373,5 @@ void CollisionResponse_CircleLineSegment(const CSD1130::Vec2 &ptInter,
 
 	// Normalize reflection
 	CSD1130::Vector2DNormalize(reflected, reflected);
-}
 
-
-
+} // end CollisionResponse_CircleLineSegment

@@ -4,7 +4,8 @@
 \author 	Guo Yiming, yiming.guo, 2202613
 \par    	email: yiming.guo@digipen.edu
 \date   	Mar 18, 2023
-\brief
+\brief		Defines Load, Init, Update, Draw, Free and Unload functions for
+			Cage Game State.
 
 Copyright (C) 2023 DigiPen Institute of Technology.
 Reproduction or disclosure of this file or its contents without the
@@ -54,25 +55,25 @@ enum class TYPE_OBJECT
 /******************************************************************************/
 struct GameObj
 {
-	TYPE_OBJECT	type;		// object type
+	TYPE_OBJECT			type;		// object type
 	AEGfxVertexList *	pMesh;		// pbject
 };
 
 
 struct GameObjInst
 {
-	GameObj*		pObject;	// pointer to the 'original'
-	unsigned int	flag;		// bit flag or-ed together
-	float			scale;
-	CSD1130::Vec2			posCurr;	// object current position
-	CSD1130::Vec2			velCurr;	// object current velocity
-	float			dirCurr;	// object current direction
-	float			speed;
+	GameObj*			pObject;	// pointer to the 'original'
+	unsigned int		flag;		// bit flag or-ed together
+	float				scale;
+	CSD1130::Vec2		posCurr;	// object current position
+	CSD1130::Vec2		velCurr;	// object current velocity
+	float				dirCurr;	// object current direction
+	float				speed;
 
-	CSD1130::Mtx33			transform;	// object drawing matrix
+	CSD1130::Mtx33		transform;	// object drawing matrix
 
 	// pointer to custom data specific for each object type
-	void*			pUserData;
+	void*				pUserData;
 };
 
 
@@ -90,21 +91,21 @@ static GameObjInst		*sGameObjInstList;
 static unsigned int		sGameObjInstNum;
 
 // function to create/destroy a game object instance
-GameObjInst*		gameObjInstCreate (TYPE_OBJECT type,
-										   float scale, 
-	CSD1130::Vec2* pPos,
-	CSD1130::Vec2* pVel,
-										   float dir);
-void				gameObjInstDestroy(GameObjInst* pInst);
+GameObjInst*		gameObjInstCreate (	TYPE_OBJECT type,
+										float scale, 
+										CSD1130::Vec2* pPos,
+										CSD1130::Vec2* pVel,
+										float dir);
+void				gameObjInstDestroy(	GameObjInst* pInst);
 
-static Circle			*sBallData = 0;
+static Circle		*sBallData = 0;
 static LineSegment	*sWallData = 0;
 
 
 
 /******************************************************************************/
 /*!
-
+	"Load" function of this state 
 */
 /******************************************************************************/
 void GameStateCageLoad(void)
@@ -113,8 +114,8 @@ void GameStateCageLoad(void)
 	if (EXTRA_CREDITS > 1 || EXTRA_CREDITS < 0)
 		EXTRA_CREDITS = 0;
 
-	sGameObjList = (GameObj *)calloc(GAME_OBJ_NUM_MAX, sizeof(GameObj));
-	sGameObjInstList = (GameObjInst *)calloc(GAME_OBJ_INST_NUM_MAX, sizeof(GameObjInst));
+	sGameObjList		= (GameObj *)calloc(GAME_OBJ_NUM_MAX, sizeof(GameObj));
+	sGameObjInstList	= (GameObjInst *)calloc(GAME_OBJ_INST_NUM_MAX, sizeof(GameObjInst));
 	sGameObjNum = 0;
 
 	GameObj* pObj;
@@ -172,7 +173,7 @@ void GameStateCageLoad(void)
 
 /******************************************************************************/
 /*!
-
+	"Initialize" function of this state
 */
 /******************************************************************************/
 void GameStateCageInit(void)
@@ -198,19 +199,19 @@ void GameStateCageInit(void)
 		for(unsigned int i = 0; i < ballNum; ++i)
 		{
 			// read pos
-			inFile>>str>>sBallData[i].m_center.x;
-			inFile>>str>>sBallData[i].m_center.y;
+			inFile >> str >> sBallData[i].m_center.x;
+			inFile >> str >> sBallData[i].m_center.y;
 			// read direction
-			inFile>>str>>dir;
+			inFile >> str >> dir;
 			// read speed
-			inFile>>str>>speed;
+			inFile >> str >> speed;
 			// read radius
-			inFile>>str>>sBallData[i].m_radius;
+			inFile >> str >> sBallData[i].m_radius;
 			
 			// create ball instance
-			CSD1130::Vec2 vel = CSD1130::Vec2(cos(dir * PI_OVER_180) * speed, sin(dir * PI_OVER_180) * speed);
-			pInst = gameObjInstCreate(TYPE_OBJECT::TYPE_OBJECT_BALL, sBallData[i].m_radius,
-										&sBallData[i].m_center, &vel, 0.0f);
+			CSD1130::Vec2 vel	= CSD1130::Vec2(cos(dir * PI_OVER_180) * speed, sin(dir * PI_OVER_180) * speed);
+			pInst				= gameObjInstCreate(TYPE_OBJECT::TYPE_OBJECT_BALL, sBallData[i].m_radius, 
+													&sBallData[i].m_center, &vel, 0.0f);
 			AE_ASSERT(pInst);
 			pInst->speed = speed;
 			pInst->pUserData = &sBallData[i];
@@ -272,7 +273,7 @@ void GameStateCageInit(void)
 
 /******************************************************************************/
 /*!
-
+	"Update" function of this state
 */
 /******************************************************************************/
 void GameStateCageUpdate(void)
@@ -306,7 +307,7 @@ void GameStateCageUpdate(void)
 		posNext.y = pBallInst->posCurr.y + pBallInst->velCurr.y * g_dt;
 
 		// Update the latest ball data with the lastest ball's position
-		Circle &ballData = *((Circle*)pBallInst->pUserData);
+		Circle &ballData	= *((Circle*)pBallInst->pUserData);
 		ballData.m_center.x = pBallInst->posCurr.x;
 		ballData.m_center.y = pBallInst->posCurr.y;
 
@@ -341,9 +342,9 @@ void GameStateCageUpdate(void)
 							CSD1130::Vec2 reflectedVec;
 
 							CollisionResponse_CircleLineSegment(interPtA,
-								normalAtCollision,
-								posNext,
-								reflectedVec);
+							normalAtCollision,
+							posNext,
+							reflectedVec);
 
 							pBallInst->velCurr.x = reflectedVec.x * pBallInst->speed;
 							pBallInst->velCurr.y = reflectedVec.y * pBallInst->speed;
@@ -386,7 +387,7 @@ void GameStateCageUpdate(void)
 
 /******************************************************************************/
 /*!
-
+	"Draw" function of this state
 */
 /******************************************************************************/
 void GameStateCageDraw(void)
@@ -449,7 +450,7 @@ void GameStateCageDraw(void)
 
 /******************************************************************************/
 /*!
-
+	"Free" function of this state
 */
 /******************************************************************************/
 void GameStateCageFree(void)
@@ -468,7 +469,7 @@ void GameStateCageFree(void)
 
 /******************************************************************************/
 /*!
-
+	"Unload" function of this state
 */
 /******************************************************************************/
 void GameStateCageUnload(void)
@@ -483,7 +484,7 @@ void GameStateCageUnload(void)
 
 /******************************************************************************/
 /*!
-
+	Create game object instance
 */
 /******************************************************************************/
 GameObjInst* gameObjInstCreate(TYPE_OBJECT type,
@@ -523,7 +524,7 @@ GameObjInst* gameObjInstCreate(TYPE_OBJECT type,
 
 /******************************************************************************/
 /*!
-
+	Destroy game object instance
 */
 /******************************************************************************/
 void gameObjInstDestroy(GameObjInst* pInst)

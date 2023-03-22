@@ -4,7 +4,8 @@
 \author 	Guo Yiming, yiming.guo, 2202613
 \par    	email: yiming.guo@digipen.edu
 \date   	Mar 18, 2023
-\brief
+\brief		Declares Load, Init, Update, Draw, Free and Unload functions for
+			Cage Game State.
 
 Copyright (C) 2023 DigiPen Institute of Technology.
 Reproduction or disclosure of this file or its contents without the

@@ -4,7 +4,13 @@
 \author 	Guo Yiming, yiming.guo, 2202613
 \par    	email: yiming.guo@digipen.edu
 \date   	Mar 18, 2023
-\brief
+\brief		Defines global variables gGameStateInit, gGameStateCurr,
+			gGameStatePrev and gGameStateNext.
+			
+			Defines global function pointers to GameStateLoad, GameStateInit,
+			GameStateUpdate, GameStateDraw, GameStateFree, GameStateUnload.
+
+			Declares GameStateMgrInit and GameStateMgrUpdate functions.
 
 Copyright (C) 2023 DigiPen Institute of Technology.
 Reproduction or disclosure of this file or its contents without the

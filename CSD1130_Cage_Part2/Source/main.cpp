@@ -4,7 +4,7 @@
 \author 	Guo Yiming, yiming.guo, 2202613
 \par    	email: yiming.guo@digipen.edu
 \date   	Mar 18, 2023
-\brief
+\brief		Game entry point			
 
 Copyright (C) 2023 DigiPen Institute of Technology.
 Reproduction or disclosure of this file or its contents without the
@@ -28,7 +28,7 @@ s8	fontId = 0;
 	Starting point of the application
 */
 /******************************************************************************/
-int WINAPI WinMain(HINSTANCE instanceH, HINSTANCE prevInstanceH, LPSTR command_line, int show)
+int WINAPI WinMain(_In_ HINSTANCE instanceH, _In_opt_ HINSTANCE prevInstanceH, _In_ LPSTR command_line, _In_ int show)
 {
 	// Enable run-time memory check for debug builds.
 	#if defined(DEBUG) | defined(_DEBUG)
