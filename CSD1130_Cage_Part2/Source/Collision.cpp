@@ -49,7 +49,7 @@ int CollisionIntersection_CircleLineSegment(const Circle &circle,
 	// Calculate Velocity vector V and its outward normal M
 	CSD1130::Vec2 V = ptEnd - circle.m_center;
 	CSD1130::Vec2 M(V.y, -V.x);
-	//CSD1130::Vector2DNormalize(M, CSD1130::Vec2(V.y, -V.x));
+	//CSD1130::Vector2DNormalize(M, M);
 
 	// Calculate N.Bs, N.P0, N.Bs & N.V
 	float NBs = CSD1130::Vector2DDotProduct(lineSeg.m_normal, circle.m_center);
@@ -151,8 +151,10 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 
 	// Calculate Velocity vector V and its outward normal M
 	CSD1130::Vec2 V = ptEnd - circle.m_center;
-	CSD1130::Vec2 M;
-	CSD1130::Vector2DNormalize(M, CSD1130::Vector2D(V.y, -V.x));
+	CSD1130::Vec2 M(V.y, -V.x);
+	CSD1130::Vec2 Vnorm;
+	CSD1130::Vector2DNormalize(M, M);
+	CSD1130::Vector2DNormalize(Vnorm, V);
 
 	// used for calculation later
 	float m, s, dist0, dist1;
@@ -160,7 +162,7 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 	if (withinBothLines) { // When it's true, is to say that Bs is starting from between both imaginary lines
 		// Check which edge may collide first?
 		if (BsP0P0P1 > 0) { // P0 side
-			if ((m = CSD1130::Vector2DDotProduct(BsP0, V)) > 0) { // Otherwise no collision
+			if ((m = CSD1130::Vector2DDotProduct(BsP0, Vnorm)) > 0) { // Otherwise no collision
 				// Reaching here means the circle movement is facing P0
 
 				// M is normalized outward normal of V
@@ -184,7 +186,7 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 		}
 
 		else { //(BsP1.P0P1 < 0) //P1 side
-			if ((m = CSD1130::Vector2DDotProduct(BsP1, V)) > 0) { // Otherwise no collision
+			if ((m = CSD1130::Vector2DDotProduct(BsP1, Vnorm)) > 0) { // Otherwise no collision
 				// Reaching here means the circle movement is facing P1
 				// M is normalized outward normal of V
 				dist1 = CSD1130::Vector2DDotProduct(BsP1, M); // Same as P1.M - Bs.M
@@ -215,14 +217,17 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 
 		float dist0_abs = abs(dist0);
 		float dist1_abs = abs(dist1);
+
 		if ((dist0_abs > circle.m_radius) && (dist1_abs > circle.m_radius))
 			return 0;
 
 		else if ((dist0_abs <= circle.m_radius) && (dist1_abs <= circle.m_radius)) {
 			float m0 = CSD1130::Vector2DDotProduct(BsP0, V);
 			float m1 = CSD1130::Vector2DDotProduct(BsP1, V);
+
 			float m0_abs = abs(m0);
 			float m1_abs = abs(m1);
+
 			P0Side = (m0_abs < m1_abs);
 		}
 		else if (dist0_abs <= circle.m_radius)
@@ -231,7 +236,7 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 			P0Side = false;
 
 		if (P0Side) { // circle is closer to P0
-			if ((m = CSD1130::Vector2DDotProduct(BsP0, V)) < 0)
+			if ((m = CSD1130::Vector2DDotProduct(BsP0, Vnorm)) < 0)
 				return 0; // moving away
 			else {
 				// Reaching here means the circle movement is going towards P0
@@ -250,7 +255,7 @@ int CheckMovingCircleToLineEdge(bool withinBothLines,
 		}
 
 		else { // circle is closer to P1
-			if ((m = CSD1130::Vector2DDotProduct(BsP1, V)) < 0)
+			if ((m = CSD1130::Vector2DDotProduct(BsP1, Vnorm)) < 0)
 				return 0; // moving away
 			else {
 				// Reaching here means the circle movement is going towards P1
@@ -285,12 +290,17 @@ void CollisionResponse_CircleLineSegment(const CSD1130::Vec2 &ptInter,
 	CSD1130::Vec2 &ptEnd,
 	CSD1130::Vec2 &reflected)
 {
-	CSD1130::Vec2 i = ptEnd - ptInter;
-	CSD1130::Vec2 s = CSD1130::Vector2DDotProduct(i, normal) * normal;
-	CSD1130::Vec2 m = i - s;
-	CSD1130::Vec2 r = m - s;
-	ptEnd = ptInter + r;
-	CSD1130::Vector2DNormalize(reflected, r);
+	// Calculate penetration vector
+	CSD1130::Vec2 penetration = ptEnd - ptInter;
+
+	// Calculate reflection
+	reflected = penetration - 2 * CSD1130::Vector2DDotProduct(penetration, normal) * normal;
+
+	// Calculate Be'
+	ptEnd = ptInter + reflected;
+
+	// Normalize reflection
+	CSD1130::Vector2DNormalize(reflected, reflected);
 }
 
 

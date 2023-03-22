@@ -77,9 +77,9 @@ namespace CSD1130 {
 		return tmp;
 	}
 
+
 	void Vector2DNormalize(Vector2D& pResult, const Vector2D& pVec0) {
-		pResult.x = pVec0.x / Vector2DLength(pVec0);
-		pResult.y = pVec0.y / Vector2DLength(pVec0);
+		pResult = pVec0 / Vector2DLength(pVec0);
 	}
 
 	float Vector2DLength(const Vector2D& pVec0) {
